@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Board Games</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="appRoot">
+    <header>
+      <h1 id="appTitle">Board Games</h1>
+      <p class="subtitle" id="appSubtitle">Choose a game to play</p>
+    </header>
+
+    <section class="game-select" id="gameSelect">
+      <button class="game-btn" data-game="ttt">
+        <span class="game-icon">⭕</span>
+        <span class="game-label">Tic Tac Toe</span>
+        <span class="game-desc">Classic 3×3 grid</span>
+      </button>
+      <button class="game-btn" data-game="reversi">
+        <span class="game-icon">⚫</span>
+        <span class="game-label">Reversi</span>
+        <span class="game-desc">8×8 strategy — flip discs to win</span>
+      </button>
+      <button class="game-btn" data-game="minesweeper">
+        <span class="game-icon">💣</span>
+        <span class="game-label">Minesweeper</span>
+        <span class="game-desc">Clear the minefield — 8×8 or 15×15</span>
+      </button>
+
+      <section class="stats-panel" id="statsPanel">
+        <h2 class="stats-title">Leaderboard</h2>
+        <p class="stats-empty hidden" id="statsEmpty">No games recorded yet.</p>
+        <ul class="stats-list" id="statsList"></ul>
+        <div class="history-panel hidden" id="historyPanel">
+          <h3 class="history-title" id="historyTitle"></h3>
+          <ul class="history-list" id="historyList"></ul>
+        </div>
+      </section>
+    </section>
+
+    <section class="mode-select hidden" id="modeSelect">
+      <button class="mode-btn" data-mode="pvp">
+        <span class="mode-icon">👥</span>
+        <span class="mode-label">Human vs Human</span>
+        <span class="mode-desc">Two players, same device</span>
+      </button>
+      <button class="mode-btn" data-mode="pvc">
+        <span class="mode-icon">🤖</span>
+        <span class="mode-label">Human vs Computer</span>
+        <span class="mode-desc">Play against the AI</span>
+      </button>
+      <button class="btn btn-secondary back-btn" id="gameSelectBackBtn">← Choose another game</button>
+    </section>
+
+    <section class="mode-select hidden" id="difficultySelect">
+      <button class="mode-btn" data-difficulty="8x8">
+        <span class="mode-icon">🟢</span>
+        <span class="mode-label">8×8</span>
+        <span class="mode-desc">Beginner — 10 mines</span>
+      </button>
+      <button class="mode-btn" data-difficulty="15x15">
+        <span class="mode-icon">🔴</span>
+        <span class="mode-label">15×15</span>
+        <span class="mode-desc">Challenge — 40 mines</span>
+      </button>
+      <button class="btn btn-secondary back-btn" id="difficultyBackBtn">← Choose another game</button>
+    </section>
+
+    <section class="setup hidden" id="setupSection">
+      <h2 class="setup-title" id="setupTitle">Enter player names</h2>
+      <form id="setupForm" class="setup-form">
+        <label class="field">
+          <span id="playerXLabel">Player X</span>
+          <input type="text" id="playerXInput" name="playerX" placeholder="Name" maxlength="32" required autocomplete="name">
+        </label>
+        <label class="field hidden" id="playerOField">
+          <span id="playerOLabel">Player O</span>
+          <input type="text" id="playerOInput" name="playerO" placeholder="Name" maxlength="32" autocomplete="name">
+        </label>
+        <div class="controls">
+          <button type="button" class="btn btn-secondary" id="setupBackBtn">Back</button>
+          <button type="submit" class="btn btn-primary">Start Game</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="game hidden" id="gameSection">
+      <div class="status-bar">
+        <span class="mode-badge" id="modeBadge"></span>
+        <span class="turn-indicator" id="turnIndicator"></span>
+      </div>
+
+      <div class="score-bar hidden" id="scoreBar"></div>
+      <div class="players-bar" id="playersBar"></div>
+
+      <div class="board" id="board" aria-label="Game board"></div>
+
+      <div class="result hidden" id="result">
+        <p class="result-text" id="resultText"></p>
+        <p class="result-stats hidden" id="resultStats"></p>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-secondary" id="changeModeBtn">Change Mode</button>
+        <button class="btn btn-primary" id="restartBtn">New Game</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

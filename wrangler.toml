@@ -1,0 +1,8 @@
+name = "boardgames-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "boardgames-db"
+database_id = "8f6186bb-45f6-415e-a025-10b3bdfb484f"
