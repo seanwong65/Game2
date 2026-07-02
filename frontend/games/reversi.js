@@ -87,45 +87,144 @@ function evaluate(board, ai, human) {
   return (aiCount - humanCount) * 10 + cornerBonus + (aiMoves - humanMoves) * 3;
 }
 
-function minimax(board, depth, alpha, beta, isMax, ai, human) {
+// ── Hard-level heuristics ─────────────────────────────────────────────
+// Classic Reversi positional weights: corners are gold, the X/C squares
+// next to empty corners are traps, edges are mildly good.
+const WEIGHTS = [
+  120, -20, 20, 5, 5, 20, -20, 120,
+  -20, -40, -5, -5, -5, -5, -40, -20,
+  20, -5, 15, 3, 3, 15, -5, 20,
+  5, -5, 3, 3, 3, 3, -5, 5,
+  5, -5, 3, 3, 3, 3, -5, 5,
+  20, -5, 15, 3, 3, 15, -5, 20,
+  -20, -40, -5, -5, -5, -5, -40, -20,
+  120, -20, 20, 5, 5, 20, -20, 120,
+];
+
+// Frontier discs (own discs touching an empty square) are exposed to being
+// flipped — fewer is better.
+function countFrontier(board, player) {
+  let n = 0;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[idx(r, c)] !== player) continue;
+      for (const [dr, dc] of DIRS) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[idx(nr, nc)] === null) {
+          n++;
+          break;
+        }
+      }
+    }
+  }
+  return n;
+}
+
+// Phase-aware evaluation used by the "hard" AI: positional weights + corner
+// control + mobility + frontier, shifting toward raw disc count in the endgame.
+function evaluateHard(board, ai, human) {
+  const aiMoves = getValidMoves(board, ai).length;
+  const humanMoves = getValidMoves(board, human).length;
+  const { black, white } = countDiscs(board);
+  const aiCount = ai === BLACK ? black : white;
+  const humanCount = ai === BLACK ? white : black;
+
+  // Terminal position — decide by final disc count.
+  if (aiMoves === 0 && humanMoves === 0) {
+    if (aiCount > humanCount) return 1e6 + (aiCount - humanCount);
+    if (aiCount < humanCount) return -1e6 - (humanCount - aiCount);
+    return 0;
+  }
+
+  const empties = 64 - black - white;
+
+  let pos = 0;
+  for (let i = 0; i < 64; i++) {
+    if (board[i] === ai) pos += WEIGHTS[i];
+    else if (board[i] === human) pos -= WEIGHTS[i];
+  }
+
+  const corners = [0, 7, 56, 63];
+  let corner = 0;
+  for (const c of corners) {
+    if (board[c] === ai) corner++;
+    else if (board[c] === human) corner--;
+  }
+
+  const mob = aiMoves + humanMoves > 0 ? (aiMoves - humanMoves) / (aiMoves + humanMoves) : 0;
+  const frontier = countFrontier(board, human) - countFrontier(board, ai);
+  const discDiff = aiCount - humanCount;
+
+  let score = pos + corner * 100 + mob * 80 + frontier * 8;
+  // Grabbing discs early hurts mobility; only reward disc count near the end.
+  if (empties <= 8) score += discDiff * 30;
+  else if (empties <= 12) score += discDiff * 10;
+  return score;
+}
+
+// Corners-first move ordering makes alpha-beta pruning far more effective.
+function orderMoves(moves) {
+  return moves.slice().sort((a, b) => WEIGHTS[b.index] - WEIGHTS[a.index]);
+}
+
+function search(board, depth, alpha, beta, isMax, ai, human, evalFn) {
   const aiMoves = getValidMoves(board, ai);
   const humanMoves = getValidMoves(board, human);
 
   if (depth === 0 || (!aiMoves.length && !humanMoves.length)) {
-    return evaluate(board, ai, human);
+    return evalFn(board, ai, human);
   }
 
   if (isMax) {
-    if (!aiMoves.length) return minimax(board, depth - 1, alpha, beta, false, ai, human);
+    if (!aiMoves.length) return search(board, depth - 1, alpha, beta, false, ai, human, evalFn);
     let best = -Infinity;
-    for (const move of aiMoves) {
+    for (const move of orderMoves(aiMoves)) {
       const next = applyMove(board, move, ai);
-      best = Math.max(best, minimax(next, depth - 1, alpha, beta, false, ai, human));
+      best = Math.max(best, search(next, depth - 1, alpha, beta, false, ai, human, evalFn));
       alpha = Math.max(alpha, best);
       if (beta <= alpha) break;
     }
     return best;
   }
 
-  if (!humanMoves.length) return minimax(board, depth - 1, alpha, beta, true, ai, human);
+  if (!humanMoves.length) return search(board, depth - 1, alpha, beta, true, ai, human, evalFn);
   let best = Infinity;
-  for (const move of humanMoves) {
+  for (const move of orderMoves(humanMoves)) {
     const next = applyMove(board, move, human);
-    best = Math.min(best, minimax(next, depth - 1, alpha, beta, true, ai, human));
+    best = Math.min(best, search(next, depth - 1, alpha, beta, true, ai, human, evalFn));
     beta = Math.min(beta, best);
     if (beta <= alpha) break;
   }
   return best;
 }
 
-function findBestMove(board, ai, human) {
+// Deeper search as the board fills; solve to the end once few squares remain.
+function hardDepth(board) {
+  const empties = board.reduce((n, cell) => (cell === null ? n + 1 : n), 0);
+  if (empties <= 10) return empties;
+  if (empties <= 14) return 8;
+  return 6;
+}
+
+function chooseMove(board, ai, human, level) {
   const moves = getValidMoves(board, ai);
   if (!moves.length) return null;
+
+  // Easy: greedy max-flip (a well-known weak strategy), random tie-break.
+  if (level === "easy") {
+    const max = Math.max(...moves.map((m) => m.flips.length));
+    const top = moves.filter((m) => m.flips.length === max);
+    return top[Math.floor(Math.random() * top.length)];
+  }
+
+  const evalFn = level === "hard" ? evaluateHard : evaluate;
+  const depth = level === "hard" ? hardDepth(board) : 4;
   let bestMove = moves[0];
   let bestScore = -Infinity;
-  for (const move of moves) {
+  for (const move of orderMoves(moves)) {
     const next = applyMove(board, move, ai);
-    const score = minimax(next, 4, -Infinity, Infinity, false, ai, human);
+    const score = search(next, depth - 1, -Infinity, Infinity, false, ai, human, evalFn);
     if (score > bestScore) {
       bestScore = score;
       bestMove = move;
@@ -143,9 +242,13 @@ export function createReversi(ctx) {
   let gameOver = false;
   let humanColor = BLACK;
   let computerColor = WHITE;
+  let aiLevel = "normal";
+  let humanName = "";
   let playerBlackName = "";
   let playerWhiteName = "";
   let validIndices = new Set();
+
+  const LEVEL_LABELS = { easy: "簡單", normal: "普通", hard: "困難" };
 
   function updateScore() {
     const { black, white } = countDiscs(board);
@@ -207,27 +310,32 @@ export function createReversi(ctx) {
     }
   }
 
-  function resolveWinnerMark() {
-    const { black, white } = countDiscs(board);
-    if (black > white) return "X";
-    if (white > black) return "O";
-    return null;
-  }
-
   async function endGame() {
     gameOver = true;
     const { black, white } = countDiscs(board);
-    const winnerMark = resolveWinnerMark();
 
-    if (winnerMark === null) {
-      resultText.textContent = `Draw! ${black} – ${white}`;
-    } else if (mode === "pvp") {
-      const name = winnerMark === "X" ? playerBlackName : playerWhiteName;
-      resultText.textContent = `${name} wins! (${black} – ${white})`;
-    } else if (winnerMark === "X") {
-      resultText.textContent = `You win! (${black} – ${white})`;
+    // winnerMark is relative to how the game is persisted: for pvp, X = black
+    // player; for pvc, X = the human (whatever colour they were dealt).
+    let winnerMark;
+    if (mode === "pvp") {
+      winnerMark = black > white ? "X" : white > black ? "O" : null;
+      if (winnerMark === null) {
+        resultText.textContent = `Draw! ${black} – ${white}`;
+      } else {
+        const name = winnerMark === "X" ? playerBlackName : playerWhiteName;
+        resultText.textContent = `${name} wins! (${black} – ${white})`;
+      }
     } else {
-      resultText.textContent = `Computer wins! (${black} – ${white})`;
+      const humanDiscs = humanColor === BLACK ? black : white;
+      const cpuDiscs = humanColor === BLACK ? white : black;
+      winnerMark = humanDiscs > cpuDiscs ? "X" : cpuDiscs > humanDiscs ? "O" : null;
+      if (winnerMark === null) {
+        resultText.textContent = `Draw! ${black} – ${white}`;
+      } else if (winnerMark === "X") {
+        resultText.textContent = `You win! (${black} – ${white})`;
+      } else {
+        resultText.textContent = `Computer wins! (${black} – ${white})`;
+      }
     }
 
     resultEl.classList.remove("hidden");
@@ -235,7 +343,7 @@ export function createReversi(ctx) {
 
     const saved = await persistGame({
       mode,
-      playerXName: playerBlackName,
+      playerXName: mode === "pvp" ? playerBlackName : humanName,
       playerOName: playerWhiteName,
       winner: winnerMark,
     });
@@ -296,7 +404,7 @@ export function createReversi(ctx) {
 
   function computerMove() {
     if (gameOver) return;
-    const move = findBestMove(board, computerColor, humanColor);
+    const move = chooseMove(board, computerColor, humanColor, aiLevel);
     if (move) {
       playMove(move);
     } else {
@@ -304,41 +412,99 @@ export function createReversi(ctx) {
     }
   }
 
+  function renderDifficultyScreen() {
+    boardEl.className = "board board-bs-outer";
+    boardEl.innerHTML = `
+      <div class="bs-cover">
+        <div class="bs-cover-eyebrow">選擇電腦難度</div>
+        <button class="btn btn-secondary bs-diff-btn" data-level="easy">
+          😊 簡單<span class="bs-diff-desc">貪心走法，容易擊敗</span>
+        </button>
+        <button class="btn btn-secondary bs-diff-btn" data-level="normal">
+          🤔 普通<span class="bs-diff-desc">標準 AI · 預測 4 步</span>
+        </button>
+        <button class="btn btn-primary bs-diff-btn" data-level="hard">
+          🧠 困難<span class="bs-diff-desc">位置權重＋殘局精算 · 6 步以上</span>
+        </button>
+      </div>
+    `;
+    turnIndicator.textContent = "";
+    boardEl.querySelectorAll(".bs-diff-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        aiLevel = btn.dataset.level;
+        beginGame();
+      });
+    });
+  }
+
+  function beginGame() {
+    if (mode === "pvc") {
+      // Random starting colour — black always moves first, so if the human
+      // draws white the computer opens the game.
+      humanColor = Math.random() < 0.5 ? BLACK : WHITE;
+      computerColor = opponent(humanColor);
+      playerBlackName = humanColor === BLACK ? humanName : "Computer";
+      playerWhiteName = humanColor === WHITE ? humanName : "Computer";
+    }
+
+    board = initialBoard();
+    current = BLACK;
+    gameOver = false;
+
+    scoreBar.classList.remove("hidden");
+    resultEl.classList.add("hidden");
+    resultStats.classList.add("hidden");
+    boardEl.classList.remove("thinking");
+
+    if (mode === "pvp") {
+      playersBar.innerHTML = `<span class="mark-black">${escapeHtml(playerBlackName)}</span> (●) vs <span class="mark-white">${escapeHtml(playerWhiteName)}</span> (○)`;
+    } else {
+      const youDisc = humanColor === BLACK ? "●" : "○";
+      const youMark = humanColor === BLACK ? "mark-black" : "mark-white";
+      const cpuDisc = computerColor === BLACK ? "●" : "○";
+      const cpuMark = computerColor === BLACK ? "mark-black" : "mark-white";
+      playersBar.innerHTML = `<span class="${youMark}">${escapeHtml(humanName)}</span> (you, ${youDisc}) vs <span class="${cpuMark}">Computer</span> (${cpuDisc}) · ${LEVEL_LABELS[aiLevel]}`;
+    }
+
+    initBoard();
+    refreshValidMoves();
+    updateUI();
+
+    if (mode === "pvc" && current === computerColor) {
+      setTimeout(computerMove, 500);
+    }
+  }
+
   return {
     start({ mode: m, playerX, playerO }) {
       mode = m;
-      playerBlackName = playerX;
-      playerWhiteName = playerO;
-      board = initialBoard();
-      current = BLACK;
-      gameOver = false;
+      humanName = playerX;
       humanColor = BLACK;
       computerColor = WHITE;
 
-      scoreBar.classList.remove("hidden");
-      modeBadge.textContent = mode === "pvp" ? "Reversi · PvP" : "Reversi · vs CPU";
-      playersBar.innerHTML =
-        mode === "pvp"
-          ? `<span class="mark-black">${escapeHtml(playerBlackName)}</span> (●) vs <span class="mark-white">${escapeHtml(playerWhiteName)}</span> (○)`
-          : `<span class="mark-black">${escapeHtml(playerBlackName)}</span> (you) vs <span class="mark-white">Computer</span>`;
+      if (mode === "pvp") {
+        playerBlackName = playerX;
+        playerWhiteName = playerO;
+      }
 
+      modeBadge.textContent = mode === "pvp" ? "Reversi · PvP" : "Reversi · vs CPU";
       resultEl.classList.add("hidden");
       resultStats.classList.add("hidden");
       boardEl.classList.remove("thinking");
-      initBoard();
-      refreshValidMoves();
-      updateUI();
+
+      if (mode === "pvc") {
+        // Pick the opponent strength before dealing colours.
+        scoreBar.classList.add("hidden");
+        playersBar.innerHTML = "";
+        renderDifficultyScreen();
+      } else {
+        beginGame();
+      }
     },
 
     restart() {
-      board = initialBoard();
-      current = BLACK;
-      gameOver = false;
-      resultEl.classList.add("hidden");
-      resultStats.classList.add("hidden");
-      boardEl.classList.remove("thinking");
-      refreshValidMoves();
-      updateUI();
+      // Keep the chosen difficulty; re-deal colours for pvc.
+      beginGame();
     },
   };
 }

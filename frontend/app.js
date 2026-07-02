@@ -2,6 +2,8 @@ import { loadLeaderboard, loadPlayer, saveGame } from "./api.js";
 import { createTicTacToe } from "./games/tictactoe.js";
 import { createReversi } from "./games/reversi.js";
 import { createMinesweeper } from "./games/minesweeper.js";
+import { createCraps } from "./games/craps.js";
+import { createBattleship } from "./games/battleship.js";
 
 const GAME_META = {
   ttt: {
@@ -16,7 +18,7 @@ const GAME_META = {
     title: "Reversi",
     subtitle: "Black moves first — choose a mode",
     pvpLabels: { x: "Black (●)", o: "White (○)", xPh: "Black player", oPh: "White player" },
-    pvcLabels: { x: "Your name (Black)", xPh: "Your name" },
+    pvcLabels: { x: "Your name", xPh: "Your name" },
     storageKey: "reversi_player_name",
     solo: false,
   },
@@ -26,6 +28,22 @@ const GAME_META = {
     pvcLabels: { x: "Your name", xPh: "Your name" },
     storageKey: "minesweeper_player_name",
     solo: true,
+  },
+  battleship: {
+    title: "海戰棋",
+    subtitle: "佈局艦隊，擊沉對手",
+    pvpLabels: { x: "玩家 1", o: "玩家 2", xPh: "玩家 1 名字", oPh: "玩家 2 名字" },
+    pvcLabels: { x: "你的名字", xPh: "你的名字" },
+    storageKey: "battleship_player_name",
+    solo: false,
+  },
+  craps: {
+    title: "花旗骰",
+    subtitle: "Pass Line, Don't Pass — roll the dice",
+    pvcLabels: { x: "Your name", xPh: "Your name" },
+    storageKey: "craps_player_name",
+    solo: false,
+    casino: true, // skip mode select, always vs house
   },
 };
 
@@ -141,6 +159,8 @@ async function persistMinesweeper({ playerName, difficulty, won }) {
 function createGameController() {
   if (selectedGame === "reversi") return createReversi(gameContext);
   if (selectedGame === "minesweeper") return createMinesweeper(gameContext);
+  if (selectedGame === "battleship") return createBattleship(gameContext);
+  if (selectedGame === "craps") return createCraps(gameContext);
   return createTicTacToe(gameContext);
 }
 
@@ -167,16 +187,20 @@ function showModeSelect(game) {
   const meta = GAME_META[game];
   hideAllScreens();
 
-  if (meta.solo) {
+  appTitle.textContent = meta.title;
+  appSubtitle.textContent = meta.subtitle;
+
+  if (meta.casino) {
+    // Skip mode select — always vs house
+    showSetup("pvc");
+    changeModeBtn.textContent = "Change Game";
+  } else if (meta.solo) {
     difficultySelect.classList.remove("hidden");
     changeModeBtn.textContent = "Change Difficulty";
   } else {
     modeSelect.classList.remove("hidden");
     changeModeBtn.textContent = "Change Mode";
   }
-
-  appTitle.textContent = meta.title;
-  appSubtitle.textContent = meta.subtitle;
 }
 
 function showSetup(modeOrDifficulty) {
@@ -192,13 +216,27 @@ function showSetup(modeOrDifficulty) {
   hideAllScreens();
   setupSection.classList.remove("hidden");
 
-  playerOField.classList.add("hidden");
-  playerOInput.required = false;
-  setupTitle.textContent = "Enter your name";
-  playerXLabel.textContent = meta.pvcLabels.x;
-  playerXInput.placeholder = meta.pvcLabels.xPh;
+  const isPvp = pendingMode === "pvp" && meta.pvpLabels;
+
+  if (isPvp) {
+    playerOField.classList.remove("hidden");
+    playerOInput.required = true;
+    setupTitle.textContent = "Enter player names";
+    playerXLabel.textContent = meta.pvpLabels.x;
+    playerXInput.placeholder = meta.pvpLabels.xPh;
+    document.getElementById("playerOLabel").textContent = meta.pvpLabels.o;
+    playerOInput.placeholder = meta.pvpLabels.oPh;
+    playerOInput.value = "";
+  } else {
+    playerOField.classList.add("hidden");
+    playerOInput.required = false;
+    setupTitle.textContent = "Enter your name";
+    playerXLabel.textContent = meta.pvcLabels.x;
+    playerXInput.placeholder = meta.pvcLabels.xPh;
+    playerOInput.value = "";
+  }
+
   playerXInput.value = localStorage.getItem(meta.storageKey) || "";
-  playerOInput.value = "";
 }
 
 function startGame() {
@@ -211,6 +249,8 @@ function startGame() {
 
   if (selectedGame === "minesweeper") {
     activeGame.start({ difficulty: pendingDifficulty, playerX });
+  } else if (GAME_META[selectedGame].casino) {
+    activeGame.start({ playerX });
   } else {
     const mode = pendingMode;
     const playerO = mode === "pvp" ? playerOInput.value.trim() : "Computer";

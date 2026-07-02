@@ -179,7 +179,7 @@ export default {
         const mode = body.mode;
         const gameType = body.gameType || "ttt";
 
-        if (!["ttt", "reversi", "minesweeper"].includes(gameType)) {
+        if (!["ttt", "reversi", "minesweeper", "craps", "battleship"].includes(gameType)) {
           return json(400, { error: "Invalid game type" });
         }
 
