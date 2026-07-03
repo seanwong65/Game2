@@ -379,6 +379,11 @@ changeModeBtn.addEventListener("click", () => {
   if (selectedGame) showModeSelect(selectedGame);
   else showGameSelect();
 });
-restartBtn.addEventListener("click", () => activeGame?.restart());
+restartBtn.addEventListener("click", () => {
+  activeGame?.restart();
+  // On mobile the page is often scrolled down to the board — without this,
+  // "New Game" resets state below the fold and looks like nothing happened.
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
 
 refreshLeaderboard();
