@@ -1,6 +1,7 @@
 import { loadLeaderboard, loadPlayer, saveGame } from "./api.js";
 import { createTicTacToe } from "./games/tictactoe.js";
 import { createReversi } from "./games/reversi.js";
+import { createConnectFour } from "./games/connectfour.js";
 import { createMinesweeper } from "./games/minesweeper.js";
 import { createCraps } from "./games/craps.js";
 import { createBattleship } from "./games/battleship.js";
@@ -20,6 +21,14 @@ const GAME_META = {
     pvpLabels: { x: "Black (●)", o: "White (○)", xPh: "Black player", oPh: "White player" },
     pvcLabels: { x: "Your name", xPh: "Your name" },
     storageKey: "reversi_player_name",
+    solo: false,
+  },
+  connectfour: {
+    title: "四子棋",
+    subtitle: "率先連成四子直、橫或斜線獲勝",
+    pvpLabels: { x: "Player 1 (🔴)", o: "Player 2 (🟡)", xPh: "Red player", oPh: "Yellow player" },
+    pvcLabels: { x: "Your name", xPh: "Your name" },
+    storageKey: "connectfour_player_name",
     solo: false,
   },
   minesweeper: {
@@ -158,6 +167,7 @@ async function persistMinesweeper({ playerName, difficulty, won }) {
 
 function createGameController() {
   if (selectedGame === "reversi") return createReversi(gameContext);
+  if (selectedGame === "connectfour") return createConnectFour(gameContext);
   if (selectedGame === "minesweeper") return createMinesweeper(gameContext);
   if (selectedGame === "battleship") return createBattleship(gameContext);
   if (selectedGame === "craps") return createCraps(gameContext);
@@ -272,7 +282,7 @@ function resultLabel(result) {
 }
 
 function gameTypeLabel(type) {
-  return { ttt: "Tic Tac Toe", reversi: "Reversi", minesweeper: "Minesweeper" }[type] || type;
+  return { ttt: "Tic Tac Toe", reversi: "Reversi", connectfour: "四子棋", minesweeper: "Minesweeper" }[type] || type;
 }
 
 async function showPlayerHistory(name) {
