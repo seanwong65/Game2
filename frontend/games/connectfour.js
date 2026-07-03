@@ -221,25 +221,21 @@ export function createConnectFour(ctx) {
 
     const cols = new Set(validCols(board));
     const disableAll = gameOver || (mode === "pvc" && current !== humanColor);
-    boardEl.querySelectorAll(".c4-col").forEach((col, c) => {
-      col.disabled = disableAll || !cols.has(c);
+    boardEl.querySelectorAll(".cell-c4").forEach((cell, i) => {
+      cell.disabled = disableAll || !cols.has(i % COLS);
     });
   }
 
   function initBoard() {
     boardEl.className = "board board-c4";
     boardEl.innerHTML = "";
-    for (let c = 0; c < COLS; c++) {
-      const col = document.createElement("button");
-      col.className = "c4-col";
-      col.dataset.col = c;
-      col.setAttribute("aria-label", `Drop in column ${c + 1}`);
-      col.addEventListener("click", () => handleColumnClick(c));
-      boardEl.appendChild(col);
-    }
     for (let i = 0; i < ROWS * COLS; i++) {
-      const cell = document.createElement("div");
+      const c = i % COLS;
+      const cell = document.createElement("button");
       cell.className = "cell-c4";
+      cell.dataset.col = c;
+      cell.setAttribute("aria-label", `Drop in column ${c + 1}`);
+      cell.addEventListener("click", () => handleColumnClick(c));
       boardEl.appendChild(cell);
     }
     renderCells();

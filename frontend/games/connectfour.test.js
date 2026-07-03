@@ -26,8 +26,10 @@ function startPvc(ctx, level = 'normal') {
   return game;
 }
 
-function clickCol(ctx, col) {
-  ctx.boardEl.querySelectorAll('.c4-col')[col].click();
+// Clicking any cell in a column should drop into it — not just the top row.
+// Default to the top-row cell for convenience; tests can target other rows.
+function clickCol(ctx, col, row = 0) {
+  ctx.boardEl.querySelectorAll('.cell-c4')[row * 7 + col].click();
 }
 
 describe('connect four', () => {
@@ -40,12 +42,11 @@ describe('connect four', () => {
     game.start({ mode: 'pvc', playerX: 'Alice', playerO: 'Computer' });
     const btns = [...ctx.boardEl.querySelectorAll('.bs-diff-btn')];
     expect(btns.map((b) => b.dataset.level)).toEqual(['easy', 'normal', 'hard']);
-    expect(ctx.boardEl.querySelectorAll('.c4-col').length).toBe(0);
+    expect(ctx.boardEl.querySelectorAll('.cell-c4').length).toBe(0);
   });
 
   it('deals an empty 7x6 board after picking a difficulty, human plays red first', () => {
     startPvc(ctx, 'normal');
-    expect(ctx.boardEl.querySelectorAll('.c4-col').length).toBe(7);
     expect(ctx.boardEl.querySelectorAll('.cell-c4').length).toBe(42);
     expect(discCount(ctx)).toBe(0);
     expect(ctx.playersBar.textContent).toContain('🔴');
@@ -56,6 +57,15 @@ describe('connect four', () => {
     clickCol(ctx, 3);
     // Column 3 (0-indexed) bottom cell is index 5*7+3 = 38
     expect(ctx.boardEl.querySelectorAll('.cell-c4')[38].classList.contains('disc-red')).toBe(true);
+  });
+
+  it('clicking any cell in a column drops a disc, not just the top-row cell', () => {
+    startPvc(ctx, 'normal');
+    // Click the middle of the board, not the top row — this is the exact
+    // spot users naturally click, and previously had no listener at all.
+    clickCol(ctx, 3, 3);
+    expect(discCount(ctx)).toBe(1);
+    expect(ctx.boardEl.querySelectorAll('.cell-c4')[5 * 7 + 3].classList.contains('disc-red')).toBe(true);
   });
 
   it('stacks a second disc in the same column directly above the first', () => {
@@ -116,7 +126,8 @@ describe('connect four', () => {
     const start = Date.now();
     startPvc(ctx, 'hard');
     for (let i = 0; i < 6 && discCount(ctx) < 12; i++) {
-      const validCols = [...ctx.boardEl.querySelectorAll('.c4-col')].map((c, idx) => !c.disabled ? idx : -1).filter((i) => i >= 0);
+      const topRow = [...ctx.boardEl.querySelectorAll('.cell-c4')].slice(0, 7);
+      const validCols = topRow.map((c, idx) => (!c.disabled ? idx : -1)).filter((i) => i >= 0);
       clickCol(ctx, validCols[0]);
       vi.advanceTimersByTime(500);
     }
@@ -128,7 +139,7 @@ describe('connect four', () => {
     const game = createConnectFour(ctx);
     game.start({ mode: 'pvp', playerX: 'A', playerO: 'B' });
     expect(ctx.boardEl.querySelectorAll('.bs-diff-btn').length).toBe(0);
-    expect(ctx.boardEl.querySelectorAll('.c4-col').length).toBe(7);
+    expect(ctx.boardEl.querySelectorAll('.cell-c4').length).toBe(42);
     expect(ctx.playersBar.textContent).toContain('A');
     expect(ctx.playersBar.textContent).toContain('B');
   });
