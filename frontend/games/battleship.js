@@ -30,7 +30,7 @@ export function createBattleship(ctx) {
   let touchDragActive = false;
   let movingShipIdx = -1; // ship picked up for repositioning (-1 = none)
   let noAdj = true; // when true, auto-place keeps a 1-cell buffer between ships
-  let borderLimit = null; // null = unlimited; number = max border cells across all ships
+  let borderLimit = 3; // null = unlimited; number = max border cells across all ships
   let activePlayer = 0;
   let message = '';
   let messageType = 'neutral';
