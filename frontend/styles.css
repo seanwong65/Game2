@@ -364,6 +364,79 @@ h1 {
   opacity: 0.85;
 }
 
+/* Gomoku */
+.board-gomoku {
+  grid-template-columns: repeat(15, 1fr);
+  gap: 2px;
+  background: #c9a06a;
+  padding: 4px;
+}
+
+.cell-gomoku {
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  position: relative;
+  border: none;
+  border-radius: 2px;
+  background: #d9b382;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.cell-gomoku:hover:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 60%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.cell-gomoku:disabled {
+  cursor: default;
+}
+
+.cell-gomoku.disc-black,
+.cell-gomoku.disc-white {
+  cursor: default;
+}
+
+.cell-gomoku.disc-black::after,
+.cell-gomoku.disc-white::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 82%;
+  height: 82%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.cell-gomoku.disc-black::after {
+  background: radial-gradient(circle at 32% 28%, #6b6b6b, #1a1a1a 55%, #000 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.cell-gomoku.disc-white::after {
+  background: radial-gradient(circle at 32% 28%, #ffffff, #e8e8e8 55%, #b0b0b0 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.cell-gomoku.winning::after {
+  box-shadow: 0 0 0 2px var(--win), 0 1px 2px rgba(0, 0, 0, 0.4);
+  animation: pulse 0.6s ease-in-out;
+}
+
+.board.thinking .cell-gomoku {
+  opacity: 0.9;
+}
+
 .mark-black {
   color: #a3a3a3;
   font-weight: 700;
