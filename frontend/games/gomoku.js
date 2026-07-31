@@ -238,7 +238,7 @@ function chooseMove(board, ai, human, level) {
 export const _internals = { SIZE, BLACK, WHITE, chooseMove, evaluate, winningLineAt, emptyBoard, idx };
 
 export function createGomoku(ctx) {
-  const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, appRoot, escapeHtml, persistGame, formatWinRate } = ctx;
+  const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, appRoot, escapeHtml, persistGame, formatGameWinRate } = ctx;
 
   let mode = null;
   let board = emptyBoard();
@@ -319,14 +319,15 @@ export function createGomoku(ctx) {
       playerXName: mode === "pvp" ? playerBlackName : humanName,
       playerOName: playerWhiteName,
       winner: winnerMark,
+      difficulty: mode === "pvc" ? aiLevel : null,
     });
 
     if (saved) {
       resultStats.classList.remove("hidden");
       if (mode === "pvp") {
-        resultStats.textContent = `${playerBlackName}: ${formatWinRate(saved.playerX)} · ${playerWhiteName}: ${formatWinRate(saved.playerO)}`;
+        resultStats.textContent = `${playerBlackName}: ${formatGameWinRate(saved.playerX, null)} · ${playerWhiteName}: ${formatGameWinRate(saved.playerO, null)}`;
       } else if (saved.player) {
-        resultStats.textContent = `${saved.player.name}: ${formatWinRate(saved.player)} win rate`;
+        resultStats.textContent = `${saved.player.name}: ${formatGameWinRate(saved.player, aiLevel)}`;
       }
     }
   }

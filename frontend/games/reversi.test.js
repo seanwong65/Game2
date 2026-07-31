@@ -13,6 +13,7 @@ function makeCtx() {
     resultEl: el(), resultText: el(), resultStats: el(),
     escapeHtml: (s) => s,
     formatWinRate: () => '50%',
+    formatGameWinRate: vi.fn(() => '50%'),
     persistGame: vi.fn().mockResolvedValue(null),
   };
 }

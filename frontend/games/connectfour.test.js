@@ -13,6 +13,7 @@ function makeCtx() {
     resultEl: el(), resultText: el(), resultStats: el(),
     escapeHtml: (s) => s,
     formatWinRate: () => '50%',
+    formatGameWinRate: vi.fn(() => '50%'),
     persistGame: vi.fn().mockResolvedValue(null),
   };
 }
@@ -142,5 +143,54 @@ describe('connect four', () => {
     expect(ctx.boardEl.querySelectorAll('.cell-c4').length).toBe(42);
     expect(ctx.playersBar.textContent).toContain('A');
     expect(ctx.playersBar.textContent).toContain('B');
+  });
+
+  // Stats are broken down per game AND per difficulty, so the level has to
+  // reach the worker, and the result screen must show the scoped rate.
+  describe('win-rate reporting', () => {
+    // The easy AI picks a random valid column; pinning Math.random high makes
+    // it always take the right-most one, leaving the human a clear run.
+    function winAsHumanOnEasy() {
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      vi.useFakeTimers();
+      startPvc(ctx, 'easy');
+      for (const c of [0, 1, 2, 3]) {
+        clickCol(ctx, c);
+        vi.advanceTimersByTime(500);
+      }
+    }
+
+    it('sends the chosen difficulty to persistGame', () => {
+      winAsHumanOnEasy();
+      expect(ctx.resultText.textContent).toContain('You win');
+      expect(ctx.persistGame).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'pvc', difficulty: 'easy' })
+      );
+    });
+
+    it('reports no difficulty for pvp, where there is no AI level', () => {
+      const game = createConnectFour(ctx);
+      game.start({ mode: 'pvp', playerX: 'Red', playerO: 'Yellow' });
+      clickCol(ctx, 0); clickCol(ctx, 0);
+      clickCol(ctx, 1); clickCol(ctx, 1);
+      clickCol(ctx, 2); clickCol(ctx, 2);
+      clickCol(ctx, 3);
+      expect(ctx.persistGame).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'pvp', difficulty: null })
+      );
+    });
+
+    it('shows the win rate scoped to this game and difficulty', async () => {
+      ctx.persistGame.mockResolvedValue({
+        player: { name: 'Alice', winRate: 12, wins: 1, losses: 7, draws: 0 },
+      });
+      winAsHumanOnEasy();
+      await vi.waitFor(() =>
+        expect(ctx.formatGameWinRate).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'Alice' }),
+          'easy'
+        )
+      );
+    });
   });
 });

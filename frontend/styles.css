@@ -684,6 +684,74 @@ h1 {
   color: var(--x-color);
 }
 
+/* Per-game / per-difficulty win rates */
+.breakdown-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.breakdown-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.breakdown-item {
+  padding: 0.5rem 0.6rem;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.breakdown-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.breakdown-game {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.breakdown-rate {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.breakdown-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.breakdown-diffs {
+  list-style: none;
+  margin-top: 0.4rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.breakdown-diff {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.breakdown-diff-rate {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Setup form */
 .setup-title {
   font-size: 1.15rem;

@@ -234,7 +234,7 @@ function chooseMove(board, ai, human, level) {
 }
 
 export function createReversi(ctx) {
-  const { boardEl, turnIndicator, modeBadge, playersBar, scoreBar, resultEl, resultText, resultStats, escapeHtml, persistGame, formatWinRate } = ctx;
+  const { boardEl, turnIndicator, modeBadge, playersBar, scoreBar, resultEl, resultText, resultStats, escapeHtml, persistGame, formatGameWinRate } = ctx;
 
   let mode = null;
   let board = initialBoard();
@@ -346,14 +346,15 @@ export function createReversi(ctx) {
       playerXName: mode === "pvp" ? playerBlackName : humanName,
       playerOName: playerWhiteName,
       winner: winnerMark,
+      difficulty: mode === "pvc" ? aiLevel : null,
     });
 
     if (saved) {
       resultStats.classList.remove("hidden");
       if (mode === "pvp") {
-        resultStats.textContent = `${playerBlackName}: ${formatWinRate(saved.playerX)} · ${playerWhiteName}: ${formatWinRate(saved.playerO)}`;
+        resultStats.textContent = `${playerBlackName}: ${formatGameWinRate(saved.playerX, null)} · ${playerWhiteName}: ${formatGameWinRate(saved.playerO, null)}`;
       } else if (saved.player) {
-        resultStats.textContent = `${saved.player.name}: ${formatWinRate(saved.player)} win rate`;
+        resultStats.textContent = `${saved.player.name}: ${formatGameWinRate(saved.player, aiLevel)}`;
       }
     }
   }

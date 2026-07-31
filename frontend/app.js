@@ -83,6 +83,8 @@ const statsEmpty = document.getElementById("statsEmpty");
 const historyPanel = document.getElementById("historyPanel");
 const historyTitle = document.getElementById("historyTitle");
 const historyList = document.getElementById("historyList");
+const breakdownPanel = document.getElementById("breakdownPanel");
+const breakdownList = document.getElementById("breakdownList");
 const gameSection = document.getElementById("gameSection");
 const boardEl = document.getElementById("board");
 const turnIndicator = document.getElementById("turnIndicator");
@@ -115,6 +117,7 @@ const gameContext = {
   appRoot,
   escapeHtml,
   formatWinRate,
+  formatGameWinRate,
   persistGame,
   persistMinesweeper,
 };
@@ -125,8 +128,36 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function formatWinRate(player) {
-  return `${player.winRate}% (${player.wins}W / ${player.losses}L / ${player.draws}D)`;
+function formatWinRate(stats) {
+  return `${stats.winRate}% (${stats.wins}W / ${stats.losses}L / ${stats.draws}D)`;
+}
+
+const DIFFICULTY_LABELS = {
+  easy: "簡單",
+  normal: "普通",
+  hard: "困難",
+  "8x8": "8×8",
+  "15x15": "15×15",
+  none: "未分難度",
+};
+
+function difficultyLabel(key) {
+  return DIFFICULTY_LABELS[key] || key;
+}
+
+// Win rate for the game just played — scoped to that game, and to the chosen
+// difficulty when there is one, rather than the player's rate across all games.
+function formatGameWinRate(player, difficulty) {
+  const game = player?.byGame?.[selectedGame];
+  if (!game) return formatWinRate(player);
+
+  if (difficulty) {
+    const forDifficulty = game.byDifficulty?.[difficulty];
+    if (forDifficulty) {
+      return `${difficultyLabel(difficulty)} ${formatWinRate(forDifficulty)} · 全部 ${game.winRate}%`;
+    }
+  }
+  return formatWinRate(game);
 }
 
 function hideAllScreens() {
@@ -137,9 +168,12 @@ function hideAllScreens() {
   gameSection.classList.add("hidden");
 }
 
-async function persistGame({ mode, playerXName, playerOName, winner }) {
+async function persistGame({ mode, playerXName, playerOName, winner, difficulty }) {
   try {
     const payload = { gameType: selectedGame, mode, winner };
+    // Games with an AI level pass it through so stats can be broken down by
+    // difficulty; games without one simply omit it.
+    if (difficulty) payload.difficulty = difficulty;
     if (mode === "pvp") {
       payload.playerX = playerXName;
       payload.playerO = playerOName;
@@ -292,7 +326,66 @@ function resultLabel(result) {
 }
 
 function gameTypeLabel(type) {
-  return { ttt: "Tic Tac Toe", reversi: "Reversi", connectfour: "四子棋", gomoku: "五子棋", minesweeper: "Minesweeper" }[type] || type;
+  return {
+    ttt: "Tic Tac Toe",
+    reversi: "Reversi",
+    connectfour: "四子棋",
+    gomoku: "五子棋",
+    minesweeper: "Minesweeper",
+    battleship: "海戰棋",
+    craps: "花旗骰",
+  }[type] || type;
+}
+
+// One row per game, each with its own win rate and a nested row per
+// difficulty. Craps is absent by design — the worker excludes it.
+function renderBreakdown(byGame) {
+  breakdownList.innerHTML = "";
+  const entries = Object.entries(byGame || {}).sort(
+    (a, b) => b[1].gamesPlayed - a[1].gamesPlayed
+  );
+
+  if (!entries.length) {
+    breakdownPanel.classList.add("hidden");
+    return;
+  }
+
+  for (const [gameType, stats] of entries) {
+    const li = document.createElement("li");
+    li.className = "breakdown-item";
+
+    const head = document.createElement("div");
+    head.className = "breakdown-head";
+    head.innerHTML = `<span class="breakdown-game">${escapeHtml(gameTypeLabel(gameType))}</span>` +
+      `<span class="breakdown-rate">${stats.winRate}%</span>`;
+    li.appendChild(head);
+
+    const meta = document.createElement("div");
+    meta.className = "breakdown-meta";
+    meta.textContent = `${stats.wins}W · ${stats.losses}L · ${stats.draws}D · ${stats.gamesPlayed} games`;
+    li.appendChild(meta);
+
+    const diffs = Object.entries(stats.byDifficulty || {}).sort(
+      (a, b) => b[1].gamesPlayed - a[1].gamesPlayed
+    );
+    // A lone "none" bucket adds nothing over the game row itself.
+    if (diffs.length && !(diffs.length === 1 && diffs[0][0] === "none")) {
+      const ul = document.createElement("ul");
+      ul.className = "breakdown-diffs";
+      for (const [diff, dStats] of diffs) {
+        const dli = document.createElement("li");
+        dli.className = "breakdown-diff";
+        dli.innerHTML = `<span>${escapeHtml(difficultyLabel(diff))}</span>` +
+          `<span class="breakdown-diff-rate">${dStats.winRate}% (${dStats.wins}/${dStats.gamesPlayed})</span>`;
+        ul.appendChild(dli);
+      }
+      li.appendChild(ul);
+    }
+
+    breakdownList.appendChild(li);
+  }
+
+  breakdownPanel.classList.remove("hidden");
 }
 
 async function showPlayerHistory(name) {
@@ -300,6 +393,7 @@ async function showPlayerHistory(name) {
     const { player } = await loadPlayer(name);
     historyTitle.textContent = `${player.name} — ${player.winRate}% win rate`;
     historyList.innerHTML = "";
+    renderBreakdown(player.byGame);
 
     if (!player.history?.length) {
       const li = document.createElement("li");
@@ -317,7 +411,8 @@ async function showPlayerHistory(name) {
               ? "PvP"
               : "vs CPU";
         const typeLabel = gameTypeLabel(game.gameType || "ttt");
-        li.textContent = `${resultLabel(game.result)} · ${typeLabel} (${modeLabel}) · ${game.playedAt}`;
+        const diff = game.difficulty ? ` · ${difficultyLabel(game.difficulty)}` : "";
+        li.textContent = `${resultLabel(game.result)} · ${typeLabel} (${modeLabel})${diff} · ${game.playedAt}`;
         historyList.appendChild(li);
       });
     }
@@ -325,12 +420,14 @@ async function showPlayerHistory(name) {
     historyPanel.classList.remove("hidden");
   } catch {
     historyPanel.classList.add("hidden");
+    breakdownPanel.classList.add("hidden");
   }
 }
 
 function renderLeaderboard(players) {
   statsList.innerHTML = "";
   historyPanel.classList.add("hidden");
+  breakdownPanel.classList.add("hidden");
 
   if (!players.length) {
     statsEmpty.classList.remove("hidden");

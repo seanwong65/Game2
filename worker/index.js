@@ -11,10 +11,63 @@ function json(status, payload) {
   });
 }
 
+// Craps is a bankroll game against the house — a win rate is meaningless for
+// it, so it is kept out of every stats total and breakdown.
+const NO_WIN_RATE_GAMES = ["craps"];
+
 function calcWinRate(wins, losses, draws) {
   const total = wins + losses + draws;
   if (total === 0) return 0.0;
   return Math.round((wins / total) * 1000) / 10;
+}
+
+function statsFromCounts({ wins = 0, losses = 0, draws = 0 }) {
+  return {
+    wins,
+    losses,
+    draws,
+    gamesPlayed: wins + losses + draws,
+    winRate: calcWinRate(wins, losses, draws),
+  };
+}
+
+// Per-game and per-game-and-difficulty win rates, derived from game_history
+// (the source of truth for individual results).
+async function getPlayerBreakdown(db, playerId) {
+  const placeholders = NO_WIN_RATE_GAMES.map(() => "?").join(", ");
+  const { results } = await db
+    .prepare(
+      `SELECT game_type AS gameType, difficulty, result, COUNT(*) AS n
+       FROM game_history
+       WHERE player_id = ? AND game_type NOT IN (${placeholders})
+       GROUP BY game_type, difficulty, result`
+    )
+    .bind(playerId, ...NO_WIN_RATE_GAMES)
+    .all();
+
+  const byGame = {};
+  for (const row of results) {
+    const game = (byGame[row.gameType] ||= { wins: 0, losses: 0, draws: 0, byDifficulty: {} });
+    const key = { win: "wins", loss: "losses", draw: "draws" }[row.result];
+    game[key] += row.n;
+
+    // Rows written before difficulty was tracked, and games with no difficulty
+    // setting, are grouped under a single bucket rather than dropped.
+    const diff = row.difficulty || "none";
+    const bucket = (game.byDifficulty[diff] ||= { wins: 0, losses: 0, draws: 0 });
+    bucket[key] += row.n;
+  }
+
+  const out = {};
+  for (const [gameType, g] of Object.entries(byGame)) {
+    out[gameType] = {
+      ...statsFromCounts(g),
+      byDifficulty: Object.fromEntries(
+        Object.entries(g.byDifficulty).map(([d, counts]) => [d, statsFromCounts(counts)])
+      ),
+    };
+  }
+  return out;
 }
 
 function formatPlayer(row, history = null) {
@@ -56,7 +109,7 @@ async function getPlayerHistory(db, playerId, limit = 20) {
   const { results } = await db
     .prepare(
       `SELECT opponent_name AS opponentName, game_type AS gameType,
-              mode, result, played_at AS playedAt
+              difficulty, mode, result, played_at AS playedAt
        FROM game_history
        WHERE player_id = ?
        ORDER BY played_at DESC
@@ -75,13 +128,13 @@ async function applyResult(db, playerId, result) {
     .run();
 }
 
-async function insertHistory(db, playerId, opponentName, gameType, mode, result) {
+async function insertHistory(db, playerId, opponentName, gameType, mode, result, difficulty = null) {
   await db
     .prepare(
-      `INSERT INTO game_history (player_id, opponent_name, game_type, mode, result)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO game_history (player_id, opponent_name, game_type, difficulty, mode, result)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .bind(playerId, opponentName, gameType, mode, result)
+    .bind(playerId, opponentName, gameType, difficulty, mode, result)
     .run();
 }
 
@@ -92,7 +145,9 @@ async function getPlayerByName(db, name) {
     .first();
   if (!row) return null;
   const history = await getPlayerHistory(db, row.id);
-  return formatPlayer(row, history);
+  const player = formatPlayer(row, history);
+  player.byGame = await getPlayerBreakdown(db, row.id);
+  return player;
 }
 
 async function getAllPlayers(db) {
@@ -105,28 +160,27 @@ async function getAllPlayers(db) {
   return results.map((r) => formatPlayer(r));
 }
 
-async function recordPvpGame(db, playerXName, playerOName, winnerMark, gameType) {
+async function recordPvpGame(db, playerXName, playerOName, winnerMark, gameType, difficulty = null) {
   const playerX = await getOrCreatePlayer(db, playerXName);
   const playerO = await getOrCreatePlayer(db, playerOName);
+  const countsToTotals = !NO_WIN_RATE_GAMES.includes(gameType);
+
+  // Records the history row always, but only rolls the result into the
+  // player's overall totals for games that have a meaningful win rate.
+  const record = async (pid, opp, result) => {
+    await insertHistory(db, pid, opp, gameType, "pvp", result, difficulty);
+    if (countsToTotals) await applyResult(db, pid, result);
+  };
 
   if (winnerMark === null) {
-    for (const [pid, opp] of [
-      [playerX.id, playerO.name],
-      [playerO.id, playerX.name],
-    ]) {
-      await insertHistory(db, pid, opp, gameType, "pvp", "draw");
-      await applyResult(db, pid, "draw");
-    }
+    await record(playerX.id, playerO.name, "draw");
+    await record(playerO.id, playerX.name, "draw");
   } else if (winnerMark === "X") {
-    await insertHistory(db, playerX.id, playerO.name, gameType, "pvp", "win");
-    await insertHistory(db, playerO.id, playerX.name, gameType, "pvp", "loss");
-    await applyResult(db, playerX.id, "win");
-    await applyResult(db, playerO.id, "loss");
+    await record(playerX.id, playerO.name, "win");
+    await record(playerO.id, playerX.name, "loss");
   } else {
-    await insertHistory(db, playerO.id, playerX.name, gameType, "pvp", "win");
-    await insertHistory(db, playerX.id, playerO.name, gameType, "pvp", "loss");
-    await applyResult(db, playerO.id, "win");
-    await applyResult(db, playerX.id, "loss");
+    await record(playerO.id, playerX.name, "win");
+    await record(playerX.id, playerO.name, "loss");
   }
 
   return {
@@ -135,11 +189,13 @@ async function recordPvpGame(db, playerXName, playerOName, winnerMark, gameType)
   };
 }
 
-async function recordPvcGame(db, playerName, winnerMark, gameType, opponent = "Computer") {
+async function recordPvcGame(db, playerName, winnerMark, gameType, opponent = "Computer", difficulty = null) {
   const result = winnerMark === null ? "draw" : winnerMark === "X" ? "win" : "loss";
   const player = await getOrCreatePlayer(db, playerName);
-  await insertHistory(db, player.id, opponent, gameType, "pvc", result);
-  await applyResult(db, player.id, result);
+  await insertHistory(db, player.id, opponent, gameType, "pvc", result, difficulty);
+  if (!NO_WIN_RATE_GAMES.includes(gameType)) {
+    await applyResult(db, player.id, result);
+  }
   return getPlayerByName(db, player.name);
 }
 
@@ -183,6 +239,10 @@ export default {
           return json(400, { error: "Invalid game type" });
         }
 
+        // AI level or board size, kept short and stored as-is for grouping.
+        const rawDifficulty = typeof body.difficulty === "string" ? body.difficulty.trim() : "";
+        const difficulty = rawDifficulty.slice(0, 20) || null;
+
         if (mode === "pvp") {
           const playerX = (body.playerX || "").trim();
           const playerO = (body.playerO || "").trim();
@@ -195,7 +255,7 @@ export default {
           if (!["X", "O", null].includes(winner))
             return json(400, { error: "Invalid winner value" });
 
-          const result = await recordPvpGame(db, playerX, playerO, winner, gameType);
+          const result = await recordPvpGame(db, playerX, playerO, winner, gameType, difficulty);
           return json(200, { ok: true, ...result });
         }
 
@@ -209,12 +269,12 @@ export default {
 
           let opponent = "Computer";
           if (gameType === "minesweeper") {
-            const diff = body.difficulty || "8x8";
+            const diff = difficulty || "8x8";
             const labels = { "8x8": "8×8 grid", "15x15": "15×15 grid" };
             opponent = labels[diff] || diff;
           }
 
-          const player = await recordPvcGame(db, playerName, winner, gameType, opponent);
+          const player = await recordPvcGame(db, playerName, winner, gameType, opponent, difficulty);
           return json(200, { ok: true, player });
         }
 

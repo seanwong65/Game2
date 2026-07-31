@@ -12,7 +12,7 @@ export function createBattleship(ctx) {
   const {
     boardEl, turnIndicator, modeBadge, playersBar, scoreBar,
     resultEl, resultText, resultStats,
-    escapeHtml, persistGame, formatWinRate, appRoot,
+    escapeHtml, persistGame, formatGameWinRate, appRoot,
   } = ctx;
 
   let gameMode = 'pvc';
@@ -799,11 +799,11 @@ export function createBattleship(ctx) {
     resultText.textContent = message;
     try {
       if (gameMode === 'pvc') {
-        const saved = await persistGame({ mode: 'pvc', playerXName: playerNames[0], playerOName: '電腦', winner: winnerIdx === 0 ? 'X' : 'O' });
-        if (saved?.player) { resultStats.classList.remove('hidden'); resultStats.textContent = `${saved.player.name}: 勝率 ${formatWinRate(saved.player)}`; }
+        const saved = await persistGame({ mode: 'pvc', playerXName: playerNames[0], playerOName: '電腦', winner: winnerIdx === 0 ? 'X' : 'O', difficulty: aiDifficulty });
+        if (saved?.player) { resultStats.classList.remove('hidden'); resultStats.textContent = `${saved.player.name}: 勝率 ${formatGameWinRate(saved.player, aiDifficulty)}`; }
       } else {
         const saved = await persistGame({ mode: 'pvp', playerXName: playerNames[0], playerOName: playerNames[1], winner: winnerIdx === 0 ? 'X' : 'O' });
-        if (saved?.playerX) { resultStats.classList.remove('hidden'); resultStats.textContent = `${saved.playerX.name}: ${formatWinRate(saved.playerX)} | ${saved.playerO.name}: ${formatWinRate(saved.playerO)}`; }
+        if (saved?.playerX) { resultStats.classList.remove('hidden'); resultStats.textContent = `${saved.playerX.name}: ${formatGameWinRate(saved.playerX, null)} | ${saved.playerO.name}: ${formatGameWinRate(saved.playerO, null)}`; }
       }
     } catch (e) { console.error(e); }
   }
