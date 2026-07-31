@@ -1401,7 +1401,7 @@ h1 {
 
 .craps-zone:last-child { border-bottom: none; }
 
-.craps-zone:hover:not(.zone-locked):not(.craps-zone-come) {
+.craps-zone:hover:not(.zone-locked):not(.zone-pending) {
   background: rgba(255,255,255,0.04);
 }
 
@@ -1441,35 +1441,93 @@ h1 {
 .craps-zone-field .zone-labels { min-width: 64px; }
 
 .zone-field-nums {
-  font-size: 0.78rem;
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.fnum {
+  font-size: 0.8rem;
+  font-weight: 700;
   color: #bbf7d0;
-  font-weight: 600;
+  min-width: 1.35rem;
+  text-align: center;
+  padding: 0.1rem 0.15rem;
+  border-radius: 4px;
+}
+
+/* 2 and 12 pay double, so the layout rings them like a real felt does. */
+.fnum-dbl {
+  color: #fde68a;
+  box-shadow: inset 0 0 0 1px #c8a42780;
 }
 
 .zone-field-note {
   font-size: 0.65rem;
   color: #86efac88;
   margin-top: 1px;
+  width: 100%;
 }
 
-/* Come zone (decorative only) */
-.craps-zone-come {
+/* The "Bar 12" box printed on the don't-pass / don't-come lines. */
+.zone-bar12 {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #fecaca;
+  border: 1px solid #fca5a580;
+  border-radius: 3px;
+  padding: 0.05rem 0.28rem;
+  letter-spacing: 0.04em;
+}
+
+.zone-bar12::before {
+  content: "BAR ";
+  color: #fca5a599;
+}
+
+/* Come / Don't Come are drawn in their correct places but not yet live —
+   marked clearly so they never read as a bet you can make. */
+.zone-pending {
   cursor: default;
-  background: rgba(0,0,0,0.15);
-  min-height: 36px;
-  opacity: 0.6;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(0,0,0,0.18) 0 8px,
+    rgba(0,0,0,0.10) 8px 16px
+  );
+  opacity: 0.55;
 }
 
-.craps-zone-come:hover { background: rgba(0,0,0,0.15); }
+.zone-pending .zone-cn::after {
+  content: "（未開放）";
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #fca5a5;
+  margin-left: 0.25rem;
+}
 
-/* Pass zone accent */
+.craps-zone-dontcome { min-height: 40px; }
+.craps-zone-come { min-height: 54px; }
+
+/* Pass line — the outermost band, closest to the player. Curved bottom
+   edge echoes the arc it traces around a real table. */
 .craps-zone-pass {
   border-left: 4px solid #3b82f6;
+  background: rgba(59,130,246,0.07);
+  min-height: 62px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
-/* Don't Pass zone accent */
+.zone-pass-note {
+  font-size: 0.66rem;
+  color: #93c5fd;
+  letter-spacing: 0.02em;
+}
+
+/* Don't Pass sits directly above the pass line */
 .craps-zone-dontpass {
   border-left: 4px solid #ef4444;
+  background: rgba(239,68,68,0.05);
 }
 
 /* Lock message */
