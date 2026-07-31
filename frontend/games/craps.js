@@ -247,9 +247,15 @@ export function createCraps(ctx) {
           </div>
 
           <!-- 賭枱 -->
+          <!--
+            Official craps geometry, stacked vertically for a phone-width
+            table. Order runs dealer-side (top) to player-side (bottom):
+            place numbers → don't come → come → field → don't pass → pass
+            line, with the pass line outermost and closest to the player.
+          -->
           <div class="craps-felt-table">
 
-            <!-- Place Bet 落注區 -->
+            <!-- 點數格 Place numbers — dealer side, top row -->
             <div class="craps-place-nums">
               ${PLACE_NUMS.map(n => `
                 <div class="cpn ${placeBets[n] > 0 ? 'cpn-active' : ''} ${(n===6||n===8)?'cpn-hi':''}"
@@ -261,41 +267,62 @@ export function createCraps(ctx) {
               `).join('')}
             </div>
 
-            <!-- 骰面注 Field -->
+            <!-- 反來注 Don't Come — narrow strip above Come -->
+            <div class="craps-zone craps-zone-dontcome zone-pending" id="zoneDontCome">
+              <div class="zone-labels">
+                <span class="zone-cn">反來注</span>
+                <span class="zone-en">Don't Come Bar</span>
+              </div>
+              <span class="zone-bar12">12</span>
+            </div>
+
+            <!-- 來注 Come — large box -->
+            <div class="craps-zone craps-zone-come zone-pending" id="zoneCome">
+              <div class="zone-labels">
+                <span class="zone-cn">來注</span>
+                <span class="zone-en">Come</span>
+              </div>
+            </div>
+
+            <!-- 骰面注 Field — between Come and the line bets -->
             <div class="craps-zone craps-zone-field ${fieldBet > 0 ? 'zone-active' : ''}" id="zoneField">
               <div class="zone-labels">
                 <span class="zone-cn">骰面注</span>
-                <span class="zone-en">FIELD</span>
+                <span class="zone-en">Field</span>
               </div>
-              <div class="zone-field-nums">2 · 3 · 4 · 9 · 10 · 11 · 12</div>
-              <div class="zone-field-note">2 / 12 賠 2:1 &nbsp;·&nbsp; 其餘 1:1 &nbsp;·&nbsp; 一擲結算</div>
+              <div class="zone-field-nums">
+                <span class="fnum fnum-dbl">2</span>
+                <span class="fnum">3</span>
+                <span class="fnum">4</span>
+                <span class="fnum">9</span>
+                <span class="fnum">10</span>
+                <span class="fnum">11</span>
+                <span class="fnum fnum-dbl">12</span>
+              </div>
+              <div class="zone-field-note">2 同 12 賠 2:1 · 其餘 1:1</div>
               ${zoneChip(fieldBet)}
             </div>
 
-            <!-- Come (裝飾) -->
-            <div class="craps-zone craps-zone-come">
-              <span class="zone-cn">開牌區</span>
-              <span class="zone-en">COME</span>
-            </div>
-
-            <!-- 順注 Pass Line -->
-            <div class="craps-zone craps-zone-pass ${passLineBet > 0 ? 'zone-active' : ''} ${inPoint ? 'zone-locked' : ''}" id="zonePass">
-              <div class="zone-labels">
-                <span class="zone-cn">順注</span>
-                <span class="zone-en">PASS LINE</span>
-              </div>
-              ${inPoint ? '<span class="zone-lock-msg">🔒 定點後鎖定</span>' : ''}
-              ${zoneChip(passLineBet)}
-            </div>
-
-            <!-- 反注 Don't Pass -->
+            <!-- 反注 Don't Pass Bar — directly above the pass line -->
             <div class="craps-zone craps-zone-dontpass ${dontPassBet > 0 ? 'zone-active' : ''} ${inPoint ? 'zone-locked' : ''}" id="zoneDontPass">
               <div class="zone-labels">
                 <span class="zone-cn">反注</span>
-                <span class="zone-en">DON'T PASS BAR</span>
+                <span class="zone-en">Don't Pass Bar</span>
               </div>
-              ${inPoint ? '<span class="zone-lock-msg">🔒</span>' : ''}
+              <span class="zone-bar12">12</span>
+              ${inPoint ? '<span class="zone-lock-msg">🔒 定點後鎖定</span>' : ''}
               ${zoneChip(dontPassBet)}
+            </div>
+
+            <!-- 順注 Pass Line — outermost band, closest to the player -->
+            <div class="craps-zone craps-zone-pass ${passLineBet > 0 ? 'zone-active' : ''} ${inPoint ? 'zone-locked' : ''}" id="zonePass">
+              <div class="zone-labels">
+                <span class="zone-cn">順注</span>
+                <span class="zone-en">Pass Line</span>
+              </div>
+              <span class="zone-pass-note">7 · 11 贏　2 · 3 · 12 輸</span>
+              ${inPoint ? '<span class="zone-lock-msg">🔒 定點後鎖定</span>' : ''}
+              ${zoneChip(passLineBet)}
             </div>
 
           </div>
