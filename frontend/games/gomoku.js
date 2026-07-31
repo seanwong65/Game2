@@ -120,11 +120,16 @@ function evaluate(board, ai, human) {
       else if (board[i] === human) h++;
     }
     if (a && h) continue;
-    if (a === 4) score += 5000;
+    // A completed five is a won game and must outrank every other term —
+    // notably blocking the opponent's four, which is otherwise the single
+    // biggest swing available.
+    if (a === 5) score += 1e6;
+    else if (a === 4) score += 5000;
     else if (a === 3) score += 200;
     else if (a === 2) score += 10;
     else if (a === 1) score += 1;
-    if (h === 4) score -= 8000;
+    if (h === 5) score -= 1e6;
+    else if (h === 4) score -= 8000;
     else if (h === 3) score -= 400;
     else if (h === 2) score -= 15;
   }
@@ -175,6 +180,17 @@ function search(board, depth, alpha, beta, isMax, ai, human, lastIdx, lastPlayer
   return best;
 }
 
+// Finds a move that immediately completes five for `player`, or null.
+// A winning move always touches that player's own stones, so it is always
+// among the candidate moves.
+function findImmediateWin(board, player) {
+  for (const i of candidateMoves(board)) {
+    const next = place(board, i, player);
+    if (winningLineAt(next, Math.floor(i / SIZE), i % SIZE, player)) return i;
+  }
+  return null;
+}
+
 function chooseMove(board, ai, human, level) {
   const cands = candidateMoves(board);
   if (!cands.length) return null;
@@ -184,6 +200,16 @@ function chooseMove(board, ai, human, level) {
     for (let i = 0; i < board.length; i++) if (!board[i]) empties.push(i);
     return empties[Math.floor(Math.random() * empties.length)];
   }
+
+  // Winning the game beats every other consideration — take the win before
+  // any heuristic search, which only looks at a pruned shortlist of moves and
+  // could otherwise rank blocking the opponent's four above winning outright.
+  const winNow = findImmediateWin(board, ai);
+  if (winNow !== null) return winNow;
+
+  // Only if we cannot win this turn does blocking their win matter.
+  const blockNow = findImmediateWin(board, human);
+  if (blockNow !== null) return blockNow;
 
   const depth = level === "hard" ? 3 : 2;
   const beamWidth = level === "hard" ? 8 : 6;
@@ -206,6 +232,10 @@ function chooseMove(board, ai, human, level) {
   }
   return bestIdx;
 }
+
+// Exported for unit tests: the AI is pure and worth testing against
+// constructed positions that would be impractical to reach via clicks.
+export const _internals = { SIZE, BLACK, WHITE, chooseMove, evaluate, winningLineAt, emptyBoard, idx };
 
 export function createGomoku(ctx) {
   const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, appRoot, escapeHtml, persistGame, formatWinRate } = ctx;

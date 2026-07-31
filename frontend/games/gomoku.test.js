@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createGomoku } from './gomoku.js';
+import { createGomoku, _internals } from './gomoku.js';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -170,4 +170,59 @@ describe('gomoku', () => {
     game.destroy();
     expect(ctx.appRoot.classList.contains('app-wide')).toBe(false);
   });
+});
+
+// The AI is a pure function, so test it against constructed positions that
+// would be impractical to reach by clicking through a real game.
+describe('gomoku AI move choice', () => {
+  const { BLACK, WHITE, chooseMove, emptyBoard, idx } = _internals;
+
+  // Lays out stones from a compact map: { 'r,c': player, ... }
+  function boardWith(stones) {
+    const b = emptyBoard();
+    for (const [pos, player] of Object.entries(stones)) {
+      const [r, c] = pos.split(',').map(Number);
+      b[idx(r, c)] = player;
+    }
+    return b;
+  }
+
+  function line(r, c, dr, dc, len, player) {
+    const out = {};
+    for (let k = 0; k < len; k++) out[`${r + dr * k},${c + dc * k}`] = player;
+    return out;
+  }
+
+  for (const level of ['normal', 'hard']) {
+    it(`${level}: takes its own win instead of blocking the opponent's four`, () => {
+      // White (AI) has 4 at row 5 cols 5-8 → wins at (5,4) or (5,9).
+      // Black (human) has 4 at row 10 cols 5-8 → threatens (10,4)/(10,9).
+      // Winning outright must beat blocking.
+      const board = boardWith({
+        ...line(5, 5, 0, 1, 4, WHITE),
+        ...line(10, 5, 0, 1, 4, BLACK),
+      });
+      const move = chooseMove(board, WHITE, BLACK, level);
+      expect([idx(5, 4), idx(5, 9)]).toContain(move);
+    });
+
+    it(`${level}: blocks the opponent's four when it has no win available`, () => {
+      // Black threatens at (10,4)/(10,9); white has only a harmless pair.
+      const board = boardWith({
+        ...line(10, 5, 0, 1, 4, BLACK),
+        ...line(2, 2, 0, 1, 2, WHITE),
+      });
+      const move = chooseMove(board, WHITE, BLACK, level);
+      expect([idx(10, 4), idx(10, 9)]).toContain(move);
+    });
+
+    it(`${level}: takes a diagonal win over blocking`, () => {
+      const board = boardWith({
+        ...line(3, 3, 1, 1, 4, WHITE),   // wins at (2,2) or (7,7)
+        ...line(11, 2, 0, 1, 4, BLACK),  // threatens (11,1)/(11,6)
+      });
+      const move = chooseMove(board, WHITE, BLACK, level);
+      expect([idx(2, 2), idx(7, 7)]).toContain(move);
+    });
+  }
 });
