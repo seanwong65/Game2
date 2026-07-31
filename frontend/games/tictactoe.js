@@ -5,7 +5,7 @@ const WIN_LINES = [
 ];
 
 export function createTicTacToe(ctx) {
-  const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, escapeHtml, persistGame, formatWinRate } = ctx;
+  const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, escapeHtml, persistGame, formatGameWinRate } = ctx;
 
   let mode = null;
   let board = Array(9).fill(null);
@@ -90,9 +90,9 @@ export function createTicTacToe(ctx) {
     if (saved) {
       resultStats.classList.remove("hidden");
       if (mode === "pvp") {
-        resultStats.textContent = `${playerXName}: ${formatWinRate(saved.playerX)} · ${playerOName}: ${formatWinRate(saved.playerO)}`;
+        resultStats.textContent = `${playerXName}: ${formatGameWinRate(saved.playerX, null)} · ${playerOName}: ${formatGameWinRate(saved.playerO, null)}`;
       } else if (saved.player) {
-        resultStats.textContent = `${saved.player.name}: ${formatWinRate(saved.player)} win rate`;
+        resultStats.textContent = `${saved.player.name}: ${formatGameWinRate(saved.player, null)}`;
       }
     }
   }

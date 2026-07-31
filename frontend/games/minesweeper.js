@@ -15,7 +15,7 @@ export function createMinesweeper(ctx) {
     resultStats,
     escapeHtml,
     persistMinesweeper,
-    formatWinRate,
+    formatGameWinRate,
     appRoot,
   } = ctx;
 
@@ -216,7 +216,7 @@ export function createMinesweeper(ctx) {
 
     if (saved?.player) {
       resultStats.classList.remove("hidden");
-      resultStats.textContent = `${saved.player.name}: ${formatWinRate(saved.player)} win rate`;
+      resultStats.textContent = `${saved.player.name}: ${formatGameWinRate(saved.player, difficultyKey)}`;
     }
   }
 

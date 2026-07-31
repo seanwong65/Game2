@@ -193,7 +193,7 @@ function chooseMove(board, ai, human, level) {
 }
 
 export function createConnectFour(ctx) {
-  const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, escapeHtml, persistGame, formatWinRate } = ctx;
+  const { boardEl, turnIndicator, modeBadge, playersBar, resultEl, resultText, resultStats, escapeHtml, persistGame, formatGameWinRate } = ctx;
 
   let mode = null;
   let board = emptyBoard();
@@ -287,14 +287,15 @@ export function createConnectFour(ctx) {
       playerXName: mode === "pvp" ? playerRedName : humanName,
       playerOName: playerYellowName,
       winner: winnerMark,
+      difficulty: mode === "pvc" ? aiLevel : null,
     });
 
     if (saved) {
       resultStats.classList.remove("hidden");
       if (mode === "pvp") {
-        resultStats.textContent = `${playerRedName}: ${formatWinRate(saved.playerX)} · ${playerYellowName}: ${formatWinRate(saved.playerO)}`;
+        resultStats.textContent = `${playerRedName}: ${formatGameWinRate(saved.playerX, null)} · ${playerYellowName}: ${formatGameWinRate(saved.playerO, null)}`;
       } else if (saved.player) {
-        resultStats.textContent = `${saved.player.name}: ${formatWinRate(saved.player)} win rate`;
+        resultStats.textContent = `${saved.player.name}: ${formatGameWinRate(saved.player, aiLevel)}`;
       }
     }
   }

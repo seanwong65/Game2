@@ -42,7 +42,7 @@ export function createCraps(ctx) {
   const {
     boardEl, turnIndicator, modeBadge, playersBar, scoreBar,
     resultEl, resultText, resultStats,
-    escapeHtml, persistGame, formatWinRate, appRoot,
+    escapeHtml, persistGame, appRoot,
   } = ctx;
 
   let playerName = '';
@@ -415,14 +415,13 @@ export function createCraps(ctx) {
     const net = bankroll - 500;
     resultText.textContent = net >= 0 ? `盈利 $${net}！好彩！` : `輸咗 $${Math.abs(net)}，籌碼用完！`;
     resultEl.classList.remove('hidden');
-    const saved = await persistGame({
+    // Recorded so the session still appears in history, but craps is a
+    // bankroll game against the house — a win rate is meaningless, so none is
+    // shown and the worker keeps it out of the player's totals.
+    await persistGame({
       mode: 'pvc', playerXName: playerName, playerOName: '莊家',
       winner: net >= 0 ? 'X' : 'O',
     });
-    if (saved?.player) {
-      resultStats.classList.remove('hidden');
-      resultStats.textContent = `${saved.player.name}: 勝率 ${formatWinRate(saved.player)}`;
-    }
   }
 
   function init() {
