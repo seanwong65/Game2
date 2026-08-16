@@ -4,7 +4,6 @@ import { createReversi } from "./games/reversi.js";
 import { createConnectFour } from "./games/connectfour.js";
 import { createGomoku } from "./games/gomoku.js";
 import { createMinesweeper } from "./games/minesweeper.js";
-import { createCraps } from "./games/craps.js";
 import { createBattleship } from "./games/battleship.js";
 
 const GAME_META = {
@@ -54,14 +53,6 @@ const GAME_META = {
     pvcLabels: { x: "你的名字", xPh: "你的名字" },
     storageKey: "battleship_player_name",
     solo: false,
-  },
-  craps: {
-    title: "花旗骰",
-    subtitle: "Pass Line, Don't Pass — roll the dice",
-    pvcLabels: { x: "Your name", xPh: "Your name" },
-    storageKey: "craps_player_name",
-    solo: false,
-    casino: true, // skip mode select, always vs house
   },
 };
 
@@ -214,7 +205,6 @@ function createGameController() {
   if (selectedGame === "gomoku") return createGomoku(gameContext);
   if (selectedGame === "minesweeper") return createMinesweeper(gameContext);
   if (selectedGame === "battleship") return createBattleship(gameContext);
-  if (selectedGame === "craps") return createCraps(gameContext);
   return createTicTacToe(gameContext);
 }
 
@@ -333,12 +323,11 @@ function gameTypeLabel(type) {
     gomoku: "五子棋",
     minesweeper: "Minesweeper",
     battleship: "海戰棋",
-    craps: "花旗骰",
   }[type] || type;
 }
 
 // One row per game, each with its own win rate and a nested row per
-// difficulty. Craps is absent by design — the worker excludes it.
+// difficulty.
 function renderBreakdown(byGame) {
   breakdownList.innerHTML = "";
   const entries = Object.entries(byGame || {}).sort(

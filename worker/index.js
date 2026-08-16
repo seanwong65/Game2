@@ -11,10 +11,6 @@ function json(status, payload) {
   });
 }
 
-// Craps is a bankroll game against the house — a win rate is meaningless for
-// it, so it is kept out of every stats total and breakdown.
-const NO_WIN_RATE_GAMES = ["craps"];
-
 function calcWinRate(wins, losses, draws) {
   const total = wins + losses + draws;
   if (total === 0) return 0.0;
@@ -34,15 +30,14 @@ function statsFromCounts({ wins = 0, losses = 0, draws = 0 }) {
 // Per-game and per-game-and-difficulty win rates, derived from game_history
 // (the source of truth for individual results).
 async function getPlayerBreakdown(db, playerId) {
-  const placeholders = NO_WIN_RATE_GAMES.map(() => "?").join(", ");
   const { results } = await db
     .prepare(
       `SELECT game_type AS gameType, difficulty, result, COUNT(*) AS n
        FROM game_history
-       WHERE player_id = ? AND game_type NOT IN (${placeholders})
+       WHERE player_id = ?
        GROUP BY game_type, difficulty, result`
     )
-    .bind(playerId, ...NO_WIN_RATE_GAMES)
+    .bind(playerId)
     .all();
 
   const byGame = {};
@@ -163,13 +158,10 @@ async function getAllPlayers(db) {
 async function recordPvpGame(db, playerXName, playerOName, winnerMark, gameType, difficulty = null) {
   const playerX = await getOrCreatePlayer(db, playerXName);
   const playerO = await getOrCreatePlayer(db, playerOName);
-  const countsToTotals = !NO_WIN_RATE_GAMES.includes(gameType);
 
-  // Records the history row always, but only rolls the result into the
-  // player's overall totals for games that have a meaningful win rate.
   const record = async (pid, opp, result) => {
     await insertHistory(db, pid, opp, gameType, "pvp", result, difficulty);
-    if (countsToTotals) await applyResult(db, pid, result);
+    await applyResult(db, pid, result);
   };
 
   if (winnerMark === null) {
@@ -193,9 +185,7 @@ async function recordPvcGame(db, playerName, winnerMark, gameType, opponent = "C
   const result = winnerMark === null ? "draw" : winnerMark === "X" ? "win" : "loss";
   const player = await getOrCreatePlayer(db, playerName);
   await insertHistory(db, player.id, opponent, gameType, "pvc", result, difficulty);
-  if (!NO_WIN_RATE_GAMES.includes(gameType)) {
-    await applyResult(db, player.id, result);
-  }
+  await applyResult(db, player.id, result);
   return getPlayerByName(db, player.name);
 }
 
@@ -235,7 +225,7 @@ export default {
         const mode = body.mode;
         const gameType = body.gameType || "ttt";
 
-        if (!["ttt", "reversi", "minesweeper", "craps", "battleship", "connectfour", "gomoku"].includes(gameType)) {
+        if (!["ttt", "reversi", "minesweeper", "battleship", "connectfour", "gomoku"].includes(gameType)) {
           return json(400, { error: "Invalid game type" });
         }
 
