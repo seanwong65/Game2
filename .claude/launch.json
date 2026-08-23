@@ -4,7 +4,7 @@
     {
       "name": "game2-frontend",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "3457", "/Users/seanwong/Downloads/Game2/frontend"],
+      "runtimeArgs": ["serve", "-p", "3457", "frontend"],
       "port": 3457
     }
   ]

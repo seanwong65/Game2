@@ -1,3 +1,17 @@
 node_modules/
 .wrangler/
 .DS_Store
+
+# local Claude Code settings（per-machine，唔應該分享）
+.claude/settings.local.json
+
+# 本地備份：上一代 Python 原型 zip、D1 數據庫 dump、對話 transcript。
+# 唔入 git 嘅原因：
+#   ① D1 dump 同 transcript 係數據／個人紀錄，唔屬於原始碼；
+#   ② git 本身已經係完整版本歷史，呢啲純粹係「git 以外」嘅保險。
+# 佢哋照留喺 folder 入面，跟住成個 folder 搬機。
+backups/
+
+# Claude Code 嘅記憶檔。跟 folder 走，但唔入 git——入面係個人工作偏好，
+# 唔應該推上公開 repo。搬機時跟住 folder copy 就得。
+memory/
