@@ -8,7 +8,8 @@
 > ⚠️ **2026 年 6 月嗰段對話已經冇咗** —— Claude Code 嘅 transcript 預設保留
 > 30 日，最初開發（tictactoe／reversi／minesweeper／花旗骰起頭／海戰棋）
 > 嗰個 session 已經被清走。呢份文件同 git log 就係僅存嘅紀錄。
-> 現存嘅 transcript 喺 `backups/transcript_2026-08-23.jsonl`（3.9MB）。
+> 現存嘅 transcript 喺 `backups/transcripts/`。
+> **做完一大段開發記得行 `./scripts/sync-transcripts.sh`**，唔好再蝕多次。
 
 ---
 
@@ -135,13 +136,32 @@ D1 入面**一行 craps 記錄都冇**，所以拆走冇走失任何數據。
 ## 6. 檔案喺邊
 
 成個 project 整合晒喺呢一個 folder（2026-08-23 由 `~/Downloads/Game2` 搬過
-嚟）。換電腦淨係要搬呢個 folder，然後 `npm install` + `wrangler login`。
+嚟）。換電腦淨係要搬呢個 folder，然後：
+
+```bash
+npm install                  # node_modules 冇跟住走
+npx wrangler login           # secrets 喺 Cloudflare，唔喺呢個 folder
+./scripts/link-memory.sh     # 記憶檔 symlink 返入 folder（見下）
+```
 
 - `backups/boardgames-db_2026-08-23.sql` — D1 完整 dump（1,207 行）
 - `backups/games-python-prototype_2026-05-24.zip` — **上一代原型**，Python
   stdlib server + 本地 SQLite，冇 git 歷史，只存在於呢個 zip
-- `backups/transcript_2026-08-23.jsonl` — 現存嗰段對話
+- `backups/transcripts/` — 對話紀錄，由 `./scripts/sync-transcripts.sh` 抄入
 - `memory/` — Claude Code 記憶檔（工作偏好）
 
 `backups/` 同 `memory/` 特登 gitignore：唔屬於原始碼，跟 folder 走。
 Secrets 全部喺 Cloudflare（`wrangler secret`），唔喺呢個 folder。
+
+### 兩樣嘢原本會漏出 folder 之外
+
+Claude Code 有兩樣嘢預設**唔**喺 project folder 入面，會令「搬一個 folder
+就搞掂」呢個目標穿窿。兩樣都處理咗：
+
+| 嘢 | 原本喺邊 | 點解決 |
+|---|---|---|
+| 記憶檔 | `~/.claude/projects/<slug>/memory/` | 嗰個目錄 symlink 咗去呢個 folder 嘅 `memory/`，Claude 寫落去直接落喺 folder（`scripts/link-memory.sh`） |
+| 對話 transcript | `~/.claude/projects/<slug>/*.jsonl`，**30 日就清** | `scripts/sync-transcripts.sh` 抄入 `backups/transcripts/`，要人手行 |
+
+`<slug>` 係 project 絕對路徑將 `/` `.` `_` 全部換做 `-`，所以**folder 一搬
+位個 slug 就變**，兩個 script 都要重新行過。

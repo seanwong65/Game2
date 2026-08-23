@@ -32,8 +32,13 @@ games/
 │   ├── schema.sql
 │   └── wrangler.toml.bak   （見 CLAUDE.md 點解係 .bak）
 ├── docs/              NOTES.md（架構）、HANDOVER.md（交接）
-├── memory/            Claude Code 記憶檔（gitignored）
-└── backups/           D1 dump、上一代原型、對話 transcript（gitignored）
+├── scripts/
+│   └── sync-transcripts.sh   將對話 transcript 抄入 backups/
+├── memory/            Claude Code 記憶檔（gitignored，~/.claude symlink 過嚟）
+└── backups/           （gitignored）
+    ├── boardgames-db_*.sql        D1 dump
+    ├── games-python-prototype_*.zip  上一代原型
+    └── transcripts/               對話紀錄
 ```
 
 ## 開發
@@ -56,5 +61,19 @@ npx vitest run       # 跑測試
 
 1. `npm install`（`node_modules/` 冇跟住走）
 2. `npx wrangler login`（secrets 喺 Cloudflare，唔喺呢個 folder）
+3. 重建 memory symlink，Claude Code 嘅記憶先會繼續寫返入呢個 folder：
+
+```bash
+./scripts/link-memory.sh
+```
 
 `backups/boardgames-db_*.sql` 係 D1 數據庫嘅 snapshot，真係要重建 DB 先用。
+
+## 保存對話紀錄
+
+Claude Code 嘅 transcript **預設只保留 30 日**，而且唔喺呢個 folder 入面
+（2026 年 6 月最初開發嗰段對話就係咁樣冇咗）。做完一大段開發行一次：
+
+```bash
+./scripts/sync-transcripts.sh
+```
